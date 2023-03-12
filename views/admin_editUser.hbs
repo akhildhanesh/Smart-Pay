@@ -1,0 +1,119 @@
+<div class="flex items-center justify-center"
+    style="padding: 20px; box-shadow:0px 0px 20px rgba(22, 131, 1, 0.2); border-radius: 20px">
+    <form class="w-full max-w-lg" action="/admin/editUser" method="post">
+        <div class="flex flex-wrap -mx-3 mb-6">
+            <div class="w-full md:w-1/2 px-3 mb-6 md:mb-0">
+                <label class="block uppercase tracking-wide text-gray-700 text-xs font-bold mb-2 dark:text-white"
+                    for="grid-first-name">
+                    Username
+                </label>
+                <input
+                    class="appearance-none block w-full bg-gray-200 text-gray-700 border rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white"
+                    id="grid-first-name" type="text" name="user" value="{{data.user}}"
+                    onclick="alert('Username cannot be changed')" required>
+                {{!-- <p class="text-red-500 text-xs italic">Please fill out this field.</p> --}}
+            </div>
+            <div class="w-full md:w-1/2 px-3">
+                <label class="block uppercase tracking-wide text-gray-700 text-xs font-bold mb-2 dark:text-white"
+                    for="grid-last-name">
+                    Password
+                </label>
+                <input
+                    class="appearance-none block w-full bg-gray-200 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                    id="grid-last-name" type="password" name="pass" value="{{data.pass}}" required>
+            </div>
+        </div>
+        <div class="flex flex-wrap -mx-3 mb-6">
+            <div class="w-full md:w-1/2 px-3 mb-6 md:mb-0">
+                <label class="block uppercase tracking-wide text-gray-700 text-xs font-bold mb-2 dark:text-white"
+                    for="grid-first-name">
+                    Name
+                </label>
+                <input
+                    class="appearance-none block w-full bg-gray-200 text-gray-700 border rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white"
+                    id="grid-first-name" type="text" name="username" value="{{data.username}}" required>
+                {{!-- <p class="text-red-500 text-xs italic">Please fill out this field.</p> --}}
+            </div>
+            <div class="w-full md:w-1/2 px-3">
+                <label class="block uppercase tracking-wide text-gray-700 text-xs font-bold mb-2 dark:text-white"
+                    for="grid-last-name">
+                    Serial Number
+                </label>
+                <input
+                    class="appearance-none block w-full bg-gray-200 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                    id="sno" type="text" name="serialNumber" onclick="getSno()" value="{{data.serialNumber}}" required>
+            </div>
+        </div>
+        <div class="flex flex-wrap -mx-3 mb-6">
+            <div class="w-full md:w-1/2 px-3 mb-6 md:mb-0">
+                <label class="block uppercase tracking-wide text-gray-700 text-xs font-bold mb-2 dark:text-white"
+                    for="grid-first-name">
+                    Admission Number
+                </label>
+                <input
+                    class="appearance-none block w-full bg-gray-200 text-gray-700 border rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white"
+                    id="grid-first-name" type="text" name="admissionNumber" value="{{data.admissionNumber}}" required>
+            </div>
+            <div class="w-full md:w-1/2 px-3 mb-6 md:mb-0">
+                <label class="block uppercase tracking-wide text-gray-700 text-xs font-bold mb-2 dark:text-white"
+                    for="grid-first-name">
+                    Phone Number
+                </label>
+                <input
+                    class="appearance-none block w-full bg-gray-200 text-gray-700 border rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white"
+                    id="grid-first-name" type="number" name="phone" value="{{data.phone}}" required>
+            </div>
+        </div>
+        <div class="flex flex-wrap -mx-3 mb-6">
+            <div class="w-full md:w-1/2 px-3 mb-6 md:mb-0">
+                <label class="block uppercase tracking-wide text-gray-700 text-xs font-bold mb-2 dark:text-white"
+                    for="grid-first-name">
+                    Email ID
+                </label>
+                <input
+                    class="appearance-none block w-full bg-gray-200 text-gray-700 border rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white"
+                    id="grid-first-name" type="email" name="email" value="{{data.email}}" required>
+            </div>
+            <div class="w-full md:w-1/2 px-3 mb-6 md:mb-0">
+                <label class="block uppercase tracking-wide text-gray-700 text-xs font-bold mb-2 dark:text-white"
+                    for="grid-first-name">
+                    Place
+                </label>
+                <select
+                    class="form-select block w-full px-3 py-1.5 text-base font-normal text-gray-700 bg-white bg-clip-padding bg-no-repeat border border-solid border-gray-300 rounded transition ease-in-out m-0 focus:text-gray-700 focus:bg-white focus:border-blue-600 focus:outline-none"
+                    name="place" id="place" required>
+                    <option value="{{data.place}}">{{data.place}}</option>
+                    <option value="ernakulam">Ernakulam</option>
+                    <option value="edappally">Edappally</option>
+                    <option value="angamaly">Angamaly</option>
+                    <option value="aluva">Aluva</option>
+                </select>
+            </div>
+        </div>
+        <button
+            class="flex-shrink-0 bg-teal-500 hover:bg-teal-700 border-teal-500 hover:border-teal-700 text-sm border-4 text-white py-1 px-2 rounded"
+            type="submit">
+            Update User
+        </button>
+    </form>
+</div>
+<script>
+    function getSno() {
+        const ndef = new NDEFReader()
+        ndef.scan()
+            .then(() => {
+                // alert('Please Tap your Card')
+                ndef.onreadingerror = () => {
+                    alert("Cannot read data from the NFC tag. Try another one?")
+                };
+                ndef.onreading = event => {
+                    // alert(`Serial Number: ${event.serialNumber}`)
+                    console.log(event.serialNumber)
+                    document.getElementById("sno").value = event.serialNumber
+                }
+            })
+            .catch(error => {
+                x.innerHTML = `Error! Scan failed to start: ${error}.`
+            })
+    }
+</script>

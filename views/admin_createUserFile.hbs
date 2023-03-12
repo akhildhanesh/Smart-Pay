@@ -1,0 +1,19 @@
+<div class="flex items-center justify-center" style="padding: 20px; box-shadow:0px 0px 20px rgba(105, 14, 14, 0.191); border-radius: 20px">
+    <form class="w-full max-w-lg" action="/admin/createUserFile" method="post" enctype="multipart/form-data">
+        <div class="pt-5">
+            <input type="file" class="block w-full text-sm text-slate-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded-full file:border-0
+                  file:text-sm file:font-semibold
+                  file:bg-violet-50 file:text-violet-700
+                  hover:file:bg-violet-100
+                " name="spreadsheet" required />
+        </div>
+        <br>
+        <button
+            class="flex-shrink-0 bg-teal-500 hover:bg-teal-700 border-teal-500 hover:border-teal-700 text-sm border-4 text-white py-1 px-2 rounded"
+            type="submit">
+            Upload
+        </button>
+    </form>
+</div>
