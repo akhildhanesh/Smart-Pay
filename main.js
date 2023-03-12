@@ -342,7 +342,7 @@ app.post('/user/addMoney', (req, res) => {
                 "notes": {
                     "policy_name": "testing"
                 },
-                "callback_url": "https://idp-pay.tech/verifyPayment/fd136a11-01fe-4d98-8e60-dc50a16cf51c",
+                "callback_url": `https://idp-pay.tech/verifyPayment/${process.env.API_KEY}`,
                 "callback_method": "get",
                 // "upi_link": true
             })
@@ -359,7 +359,7 @@ app.post('/user/addMoney', (req, res) => {
         })
 })
 
-app.get('/verifyPayment/fd136a11-01fe-4d98-8e60-dc50a16cf51c', (req, res) => {
+app.get(`/verifyPayment/${process.env.API_KEY}`, (req, res) => {
     const id = req.query.razorpay_payment_link_id
     findID(id)
         .then(data => {
@@ -423,7 +423,7 @@ app.get('/test/:id', (req, res) => {
                     "notes": {
                         "policy_name": "testing"
                     },
-                    "callback_url": "https://idp-pay.tech/verifyPayment/fd136a11-01fe-4d98-8e60-dc50a16cf51c",
+                    "callback_url": `https://idp-pay.tech/verifyPayment/${process.env.API_KEY}`,
                     "callback_method": "get",
                     // "upi_link": true
                 })
