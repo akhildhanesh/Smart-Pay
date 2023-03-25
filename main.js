@@ -13,8 +13,8 @@ import { calculateFare } from './helpers/calculateFare.js'
 import { sendMsg } from './helpers/sendMsg.js'
 import { sendMail } from './helpers/sendEmail.js'
 import { createClient } from 'redis'
-import { utils, writeFile } from 'xlsx'
 import path from 'path'
+import { Worker } from 'node:worker_threads'
 
 const redis_client = createClient()
 redis_client.on('error', (err) => console.log('Redis Client Error', err))
@@ -237,11 +237,19 @@ app.get('/admin/getPendingFeeDetails', (req, res) => {
                     'Balance': e.balance
                 })
             })
-            const worksheet = utils.json_to_sheet(temp)
-            const workbook = utils.book_new()
-            utils.book_append_sheet(workbook, worksheet, 'Details')
-            writeFile(workbook, './temp/sheet.xlsx')
-            res.sendFile(`${path.resolve()}/temp/sheet.xlsx`)
+            
+            const worker = new Worker('./workers/sheet.js', {
+                workerData: {
+                    tempData: temp
+                }
+            })
+
+            worker.on('message', () => {
+                res.sendFile(`${path.resolve()}/temp/sheet.xlsx`)
+            })
+
+            worker.on('error', err => console.log(err.message))
+
         })
         .catch(e => console.log(e))
 })
@@ -318,7 +326,21 @@ app.get('/user/showTransactions', (req, res) => {
         })
 })
 
+app.get('/user/changePassword', (req, res) => {
+    res.render('change_password', { username: `Hi ${req.session.User},`, loggedIn: true })
+})
+
+app.post('/user/changePassword', (req, res) => {
+    req.body.password = md5.default(req.body.password)
+    editUser({ user: req.session.username, data: { pass: req.body.password } })
+        .then(() => {
+            return res.redirect('/user')
+        })
+    .catch(() => res.sendStatus(500))
+})
+
 app.post('/user/addMoney', (req, res) => {
+    if (req.body.amt > 500) req.body.amt = 500
     getUser(req.session.username)
         .then(data => {
             instance.paymentLink.create({
@@ -342,7 +364,7 @@ app.post('/user/addMoney', (req, res) => {
                 "notes": {
                     "policy_name": "testing"
                 },
-                "callback_url": `https://idp-pay.tech/verifyPayment/${process.env.API_KEY}`,
+                "callback_url": "https://idp-pay.tech/verifyPayment/fd136a11-01fe-4d98-8e60-dc50a16cf51c",
                 "callback_method": "get",
                 // "upi_link": true
             })
@@ -359,7 +381,7 @@ app.post('/user/addMoney', (req, res) => {
         })
 })
 
-app.get(`/verifyPayment/${process.env.API_KEY}`, (req, res) => {
+app.get('/verifyPayment/fd136a11-01fe-4d98-8e60-dc50a16cf51c', (req, res) => {
     const id = req.query.razorpay_payment_link_id
     findID(id)
         .then(data => {
@@ -382,13 +404,26 @@ app.get(`/verifyPayment/${process.env.API_KEY}`, (req, res) => {
         })
 })
 
+// app.post('/verifyPayment', (req, res) => {
+//     console.log(req.body)
+// })
+
 //testing api
-app.get('/test/:id', (req, res) => {
-    console.log(req.params.id)
-    getUserBySerialNumber(req.params.id)
+app.get('/test/:id', async (req, res) => {
+    const uid = req.params.id.slice(1,).split(' ').join(':')
+    const cache = await redis_client.get(uid)
+    if (cache != null) {
+        // console.log('value', cache)
+        return res.send(cache)
+    }
+    console.log(uid)
+    getUserBySerialNumber(uid)
         .then(async data => {
             let phone = data[0].phone
             if (data[0].status === false) {
+                redis_client.set(uid, 'BLOCKED', {
+                    EX: 60
+                })
                 return res.send('Blocked')
             }
             if (data[0].balance <= -500) {
@@ -423,7 +458,7 @@ app.get('/test/:id', (req, res) => {
                     "notes": {
                         "policy_name": "testing"
                     },
-                    "callback_url": `https://idp-pay.tech/verifyPayment/${process.env.API_KEY}`,
+                    "callback_url": "https://idp-pay.tech/verifyPayment/fd136a11-01fe-4d98-8e60-dc50a16cf51c",
                     "callback_method": "get",
                     // "upi_link": true
                 })
@@ -466,7 +501,7 @@ app.get('/test/:id', (req, res) => {
                     })
             }
         })
-        .catch(() => res.send('err'))
+        .catch(() => res.send('Unauthorized Card'))
 })
 
 //card status
@@ -517,8 +552,10 @@ app.get('*', (req, res) => {
 client.on('message', async (topic, message) => {
     const serialNumber = message.toString().split(' ').join(':').slice(1,)
     console.log(`serial number is => ${serialNumber}`)
-    if (await redis_client.get(serialNumber) != null) {
-        return client.publish('rfid/response', 'PAID')
+    const cache = await redis_client.get(serialNumber)
+    if (cache != null) {
+        // console.log('value', cache)
+        return client.publish('rfid/response', cache)
     }
     getUserBySerialNumber(serialNumber)
         .then(async data => {
@@ -527,6 +564,9 @@ client.on('message', async (topic, message) => {
             })
             let phone = data[0].phone
             if (data[0].status === false) {
+                redis_client.set(serialNumber, 'BLOCKED', {
+                    EX: 60
+                })
                 return client.publish('rfid/response', 'BLOCKED')
             }
             if (data[0].balance <= -500) {
@@ -536,6 +576,9 @@ client.on('message', async (topic, message) => {
                 sendMail(`Please pay the due amount to enable your card. https://idp-pay.tech`, data[0].email)
                     .then((response) => console.log(response))
                     .catch(err => console.log(err))
+                redis_client.set(serialNumber, 'BLOCKED', {
+                    EX: 60
+                })
                 return client.publish('rfid/response', 'BLOCKED')
             }
             let amount = await calculateFare(data[0].place)
@@ -608,7 +651,10 @@ client.on('message', async (topic, message) => {
             }
         })
         .catch(() => {
-            console.log('Card Invalid')
+            // console.log('Card Invalid')
+            redis_client.set(serialNumber, 'Invalid Request', {
+                EX: 60
+            })
             client.publish('rfid/response', 'Invalid Request')
         })
 })

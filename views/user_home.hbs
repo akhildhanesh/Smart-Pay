@@ -87,7 +87,7 @@
                     </div>
                     <div class="flex justify-center mt-4">
                         <h1 class="text-gray-400 font-thin font-os" id="showBalance">
-                            ₹ {{data.balance}}
+                            <b>₹ {{data.balance}}</b>
                         </h1>
                     </div>
                     <div class="flex flex-col justfiy-end mt-4 p-4 text-gray-400 font-quick">
@@ -103,7 +103,7 @@
                     <div class="px-3 mb-6 md:mb-0">
                         <input
                             class="text-center appearance-none block w-full bg-gray-200 text-gray-700 border rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white"
-                            id="grid-first-name" type="number" name="amt" placeholder="Enter Amount" required>
+                            id="amt" type="number" name="amt" placeholder="Enter Amount" onkeyup="amtLimit()" required>
                     </div>
                     {{!-- <input type="text" name="amt" placeholder="enter amount"> --}}
                     <button type="submit" style="color: green; outline: none">
@@ -147,7 +147,7 @@
             axios.get('/user/getBalance')
                 .then(({ data }) => {
                     if (data.balance === undefined) return document.getElementById('showBalance').innerHTML = 'Error'
-                    document.getElementById('showBalance').innerHTML = `₹ ${data.balance}`
+                    document.getElementById('showBalance').innerHTML = `<b>₹ ${data.balance}</b>`
                     if (data.balance <= -500) {
                         document.getElementById('showBalance').innerHTML = `Your card is <b>Disabled</b><br>₹ ${data.balance}`
                         document.getElementById('alert').innerHTML = `Please pay the due amount to unblock your card`
@@ -163,6 +163,18 @@
             axios.get('/user/disable')
         } else {
             axios.get('/user/enable')
+        }
+    }
+
+    const amtLimit = () => {
+        const value = document.getElementById('amt').value
+        if (value === '') return
+        if (value > 500) {
+            alert('Maximum amount cannot exceed 500')
+            document.getElementById('amt').value = 500
+        } else if (value <= 0) {
+            alert('Amount cannot be less than 1')
+            document.getElementById('amt').value = 1
         }
     }
 </script>
