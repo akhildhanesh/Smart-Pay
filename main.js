@@ -15,6 +15,7 @@ import { sendMail } from './helpers/sendEmail.js'
 import { createClient } from 'redis'
 import path from 'path'
 import { Worker } from 'node:worker_threads'
+import { createHmac } from 'node:crypto'
 
 const redis_client = createClient()
 redis_client.on('error', (err) => console.log('Redis Client Error', err))
@@ -339,51 +340,95 @@ app.post('/user/changePassword', (req, res) => {
     .catch(() => res.sendStatus(500))
 })
 
+// app.post('/user/addMoney', (req, res) => {
+//     if (req.body.amt > 500) req.body.amt = 500
+//     getUser(req.session.username)
+//         .then(data => {
+//             instance.paymentLink.create({
+//                 "amount": req.body.amt * 100,
+//                 "currency": "INR",
+//                 "accept_partial": false,
+//                 // "first_min_partial_amount": 100,
+//                 "expire_by": 1691097057,
+//                 // "reference_id": "TS1989",
+//                 "description": "Wallet",
+//                 "customer": {
+//                     "name": data[0].username,
+//                     "email": data[0].email,
+//                     "contact": data[0].phone
+//                 },
+//                 "notify": {
+//                     "sms": false,
+//                     "email": false
+//                 },
+//                 "reminder_enable": true,
+//                 "notes": {
+//                     "policy_name": "testing"
+//                 },
+//                 "callback_url": "https://idp-pay.tech/verifyPayment/fd136a11-01fe-4d98-8e60-dc50a16cf51c",
+//                 "callback_method": "get",
+//                 // "upi_link": true
+//             })
+//                 .then(data => {
+//                     editUser({ user: req.session.username, data: { reference_id: data.id, requested_amt: req.body.amt } })
+//                         .then(() => {
+//                             return res.redirect(data.short_url)
+//                         })
+//                 })
+//                 .catch(err => {
+//                     console.log(err)
+//                     return res.redirect('/user/home')
+//                 })
+//         })
+// })
+
 app.post('/user/addMoney', (req, res) => {
     if (req.body.amt > 500) req.body.amt = 500
     getUser(req.session.username)
         .then(data => {
-            instance.paymentLink.create({
-                "amount": req.body.amt * 100,
-                "currency": "INR",
-                "accept_partial": false,
-                // "first_min_partial_amount": 100,
-                "expire_by": 1691097057,
-                // "reference_id": "TS1989",
-                "description": "Wallet",
-                "customer": {
-                    "name": data[0].username,
-                    "email": data[0].email,
-                    "contact": data[0].phone
-                },
-                "notify": {
-                    "sms": false,
-                    "email": false
-                },
-                "reminder_enable": true,
-                "notes": {
-                    "policy_name": "testing"
-                },
-                "callback_url": "https://idp-pay.tech/verifyPayment/fd136a11-01fe-4d98-8e60-dc50a16cf51c",
-                "callback_method": "get",
-                // "upi_link": true
+            const options = {
+                amount: req.body.amt * 100,
+                currency: 'INR',
+
+            };
+            instance.orders.create(options, (err, order) => {
+                if (err) {
+                    console.error(err);
+                    return res.status(500).send('Something went wrong');
+                }
+                editUser({ user: req.session.username, data: { reference_id: order.id, requested_amt: req.body.amt } })
+                    .then(() => {
+                        let details = {
+                            name: data[0].username,
+                            email: data[0].email,
+                            phone: data[0].phone
+                        }
+                        order = { ...order, ...details }
+                        return res.json(order);
+                    })
+                    .catch(e => {
+                        console.error(e)
+                        res.sendStatus(500)
+                })
             })
-                .then(data => {
-                    editUser({ user: req.session.username, data: { reference_id: data.id, requested_amt: req.body.amt } })
-                        .then(() => {
-                            return res.redirect(data.short_url)
-                        })
-                })
-                .catch(err => {
-                    console.log(err)
-                    return res.redirect('/user/home')
-                })
         })
 })
 
-app.get('/verifyPayment/fd136a11-01fe-4d98-8e60-dc50a16cf51c', (req, res) => {
-    const id = req.query.razorpay_payment_link_id
-    findID(id)
+app.post('/verifyPayment', (req, res) => {
+    const razorpay_payment_id = req.body.razorpay_payment_id;
+    const razorpay_order_id = req.body.razorpay_order_id;
+    const razorpay_signature = req.body.razorpay_signature;
+
+    const hmac = createHmac('sha256', process.env.KEY_SECRET)
+    hmac.update(razorpay_order_id + "|" + razorpay_payment_id)
+    const digest = hmac.digest('hex')
+    if (digest != razorpay_signature) {
+        return res.send('Payment verification failed')
+    }
+
+    console.log('received', razorpay_order_id, razorpay_payment_id, razorpay_signature)
+
+    findID(razorpay_order_id)
         .then(data => {
             editUser({ user: data[0].user, data: { balance: parseFloat(data[0].balance) + parseFloat(data[0].requested_amt), requested_amt: 0 } })
                 .then(() => {
@@ -404,16 +449,12 @@ app.get('/verifyPayment/fd136a11-01fe-4d98-8e60-dc50a16cf51c', (req, res) => {
         })
 })
 
-// app.post('/verifyPayment', (req, res) => {
-//     console.log(req.body)
-// })
-
 //testing api
 app.get('/test/:id', async (req, res) => {
     const uid = req.params.id.slice(1,).split(' ').join(':')
     const cache = await redis_client.get(uid)
     if (cache != null) {
-        // console.log('value', cache)
+        console.log('value', cache)
         return res.send(cache)
     }
     console.log(uid)
@@ -474,6 +515,9 @@ app.get('/test/:id', async (req, res) => {
                                         sendMail(`Your Smart Pay account is debited with INR ${amount} on ${date()} at ${time()}. https://idp-pay.tech`, data[0].email)
                                             .then((response) => console.log(response))
                                             .catch(err => console.log(err))
+                                        redis_client.set(uid, 'ok', {
+                                            EX: 60
+                                        })
                                         return res.send('ok')
                                     })
                             })
@@ -491,6 +535,9 @@ app.get('/test/:id', async (req, res) => {
                                 sendMail(`Your Smart Pay account is debited with INR ${amount} on ${date()} at ${time()}. https://idp-pay.tech`, data[0].email)
                                     .then((response) => console.log(response))
                                     .catch(err => console.log(err))
+                                redis_client.set(uid, 'ok', {
+                                    EX: 60
+                                })
                                 return res.send('ok')
                             })
                             .catch(err => res.send('error'))
